@@ -11,8 +11,8 @@ import (
 
 	"crypto/md5"
 	"encoding/hex"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
 	"github.com/twinj/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -132,14 +132,11 @@ func CORSMiddleware() gin.HandlerFunc {
 // SECURITY
 
 func Hash(password string) ([]byte, error) {
-
 	return bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 }
 
 func VerifyPassword(hashedPassword, password string) error {
-
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
-
 }
 
 
@@ -157,45 +154,37 @@ func TokenHash(text string) string {
 }
 
 
-// UTILS
+// INITIALISATION
 
-var errorMessages = make(map[string]string)
+func (api *API) Initialize() {
 
+	var err error
 
-func FormatError(errString string) map[string]string {
+	DbUser      := os.Getenv("DB_USER")
+	DbPassword  := os.Getenv("DB_PASSWORD")
+	DbPort      := os.Getenv("DB_PORT")
+	DbHost      := os.Getenv("DB_HOST")
+	DbName      := os.Getenv("DB_NAME")
 
-	if strings.Contains(errString, "username") {
-		errorMessages["Taken_username"] = "Username Already Taken"
+	DBURL := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s", DbHost, DbPort, DbUser, DbName, DbPassword)
+	api.DB, err = gorm.Open(Dbdriver, DBURL)
+	if err != nil {
+		fmt.Printf("Cannot connect to %s database", Dbdriver)
+		log.Fatal("This is the error connecting to postgres:", err)
+	} else {
+		fmt.Printf("We are connected to the %s database", Dbdriver)
 	}
 
-	if strings.Contains(errString, "email") {
-		errorMessages["Taken_email"] = "Email Already Taken"
+	//database migration
+	api.DB.Debug().AutoMigrate(
+		api.Models,
+	)
 
-	}
-	if strings.Contains(errString, "title") {
-		errorMessages["Taken_title"] = "Title Already Taken"
+	api.Router = gin.Default()
+	api.Router.Use(middlewares.CORSMiddleware())
 
-	}
-	if strings.Contains(errString, "hashedPassword") {
-		errorMessages["Incorrect_password"] = "Incorrect Password"
-	}
-	if strings.Contains(errString, "record not found") {
-		errorMessages["No_record"] = "No Record Found"
-	}
+	api.initializeRoutes()
 
-	if strings.Contains(errString, "double like") {
-		errorMessages["Double_like"] = "You cannot like this post twice"
-	}
-
-	if len(errorMessages) > 0 {
-		return errorMessages
-	}
-
-	if len(errorMessages) == 0 {
-		errorMessages["Incorrect_details"] = "Incorrect Details"
-		return errorMessages
-	}
-
-	return nil
 }
+
 
