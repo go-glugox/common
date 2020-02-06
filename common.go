@@ -11,6 +11,7 @@ import (
 
 	"crypto/md5"
 	"encoding/hex"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"github.com/twinj/uuid"
@@ -20,7 +21,7 @@ import (
 
 // 1. AUTH
 
-func CreateToken(id uint32) (string, error) {
+func CreateToken(id uint32) string {
 	claims := jwt.MapClaims{}
 	claims["authorized"] = true
 	claims["id"] = id
@@ -160,6 +161,7 @@ func (api *API) Initialize() {
 
 	var err error
 
+	Dbdriver    := "postgres"
 	DbUser      := os.Getenv("DB_USER")
 	DbPassword  := os.Getenv("DB_PASSWORD")
 	DbPort      := os.Getenv("DB_PORT")
@@ -181,7 +183,7 @@ func (api *API) Initialize() {
 	)
 
 	api.Router = gin.Default()
-	api.Router.Use(middlewares.CORSMiddleware())
+	api.Router.Use(CORSMiddleware())
 
 	api.initializeRoutes()
 
